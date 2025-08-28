@@ -1,0 +1,32 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: geo-sharding-config
+  namespace: geo-sharding
+data:
+  # Kafka configuration
+  KAFKA_BROKERS: "redpanda-service:9092"
+  KAFKA_TOPIC: "geo-events"
+  
+  # Redis configuration
+  REDIS_ADDR: "redis-service:6379"
+  
+  # PostgreSQL configuration
+  POSTGRES_HOST: "postgres-service"
+  POSTGRES_PORT: "5432"
+  POSTGRES_DB: "geosharding"
+  POSTGRES_USER: "postgres"
+  
+  # Application configuration
+  LOG_LEVEL: "info"
+  SHARD_LEVEL: "18"
+  MATERIALIZED_VIEW_TTL: "24h"
+  
+  # Metrics configuration
+  METRICS_PORT: "9090"
+  HEALTH_CHECK_INTERVAL: "30s"
+  
+  # Raft configuration
+  RAFT_HEARTBEAT_TIMEOUT: "1s"
+  RAFT_ELECTION_TIMEOUT: "3s"
+  RAFT_COMMIT_TIMEOUT: "500ms"

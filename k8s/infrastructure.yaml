@@ -1,0 +1,375 @@
+# PostgreSQL
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: postgres
+  namespace: geo-sharding
+  labels:
+    app: postgres
+    component: database
+spec:
+  serviceName: postgres-headless
+  replicas: 1
+  selector:
+    matchLabels:
+      app: postgres
+  template:
+    metadata:
+      labels:
+        app: postgres
+        component: database
+    spec:
+      containers:
+      - name: postgres
+        image: postgis/postgis:15-3.3-alpine
+        env:
+        - name: POSTGRES_DB
+          valueFrom:
+            configMapKeyRef:
+              name: geo-sharding-config
+              key: POSTGRES_DB
+        - name: POSTGRES_USER
+          valueFrom:
+            configMapKeyRef:
+              name: geo-sharding-config
+              key: POSTGRES_USER
+        - name: POSTGRES_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: geo-sharding-secrets
+              key: POSTGRES_PASSWORD
+        - name: PGDATA
+          value: /var/lib/postgresql/data/pgdata
+        ports:
+        - containerPort: 5432
+          name: postgres
+        resources:
+          requests:
+            memory: "256Mi"
+            cpu: "250m"
+          limits:
+            memory: "1Gi"
+            cpu: "1000m"
+        volumeMounts:
+        - name: postgres-data
+          mountPath: /var/lib/postgresql/data
+        - name: postgres-config
+          mountPath: /etc/postgresql/postgresql.conf
+          subPath: postgresql.conf
+        livenessProbe:
+          exec:
+            command:
+            - pg_isready
+            - -U
+            - postgres
+          initialDelaySeconds: 30
+          periodSeconds: 10
+        readinessProbe:
+          exec:
+            command:
+            - pg_isready
+            - -U
+            - postgres
+          initialDelaySeconds: 5
+          periodSeconds: 5
+      volumes:
+      - name: postgres-config
+        configMap:
+          name: postgres-config
+  volumeClaimTemplates:
+  - metadata:
+      name: postgres-data
+    spec:
+      accessModes: ["ReadWriteOnce"]
+      resources:
+        requests:
+          storage: 100Gi
+      storageClassName: fast-ssd
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: postgres-service
+  namespace: geo-sharding
+  labels:
+    app: postgres
+spec:
+  selector:
+    app: postgres
+  ports:
+  - name: postgres
+    port: 5432
+    targetPort: 5432
+    protocol: TCP
+  type: ClusterIP
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: postgres-headless
+  namespace: geo-sharding
+  labels:
+    app: postgres
+spec:
+  clusterIP: None
+  selector:
+    app: postgres
+  ports:
+  - name: postgres
+    port: 5432
+    targetPort: 5432
+    protocol: TCP
+---
+# Redis
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: redis
+  namespace: geo-sharding
+  labels:
+    app: redis
+    component: cache
+spec:
+  serviceName: redis-headless
+  replicas: 3
+  selector:
+    matchLabels:
+      app: redis
+  template:
+    metadata:
+      labels:
+        app: redis
+        component: cache
+    spec:
+      containers:
+      - name: redis
+        image: redis:7-alpine
+        command:
+        - redis-server
+        - /etc/redis/redis.conf
+        ports:
+        - containerPort: 6379
+          name: redis
+        resources:
+          requests:
+            memory: "128Mi"
+            cpu: "100m"
+          limits:
+            memory: "512Mi"
+            cpu: "500m"
+        volumeMounts:
+        - name: redis-data
+          mountPath: /data
+        - name: redis-config
+          mountPath: /etc/redis
+        livenessProbe:
+          exec:
+            command:
+            - redis-cli
+            - ping
+          initialDelaySeconds: 30
+          periodSeconds: 10
+        readinessProbe:
+          exec:
+            command:
+            - redis-cli
+            - ping
+          initialDelaySeconds: 5
+          periodSeconds: 5
+      volumes:
+      - name: redis-config
+        configMap:
+          name: redis-config
+  volumeClaimTemplates:
+  - metadata:
+      name: redis-data
+    spec:
+      accessModes: ["ReadWriteOnce"]
+      resources:
+        requests:
+          storage: 20Gi
+      storageClassName: fast-ssd
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: redis-service
+  namespace: geo-sharding
+  labels:
+    app: redis
+spec:
+  selector:
+    app: redis
+  ports:
+  - name: redis
+    port: 6379
+    targetPort: 6379
+    protocol: TCP
+  type: ClusterIP
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: redis-headless
+  namespace: geo-sharding
+  labels:
+    app: redis
+spec:
+  clusterIP: None
+  selector:
+    app: redis
+  ports:
+  - name: redis
+    port: 6379
+    targetPort: 6379
+    protocol: TCP
+---
+# Redpanda (Kafka)
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: redpanda
+  namespace: geo-sharding
+  labels:
+    app: redpanda
+    component: streaming
+spec:
+  serviceName: redpanda-headless
+  replicas: 3
+  selector:
+    matchLabels:
+      app: redpanda
+  template:
+    metadata:
+      labels:
+        app: redpanda
+        component: streaming
+    spec:
+      containers:
+      - name: redpanda
+        image: redpandadata/redpanda:latest
+        command:
+        - redpanda
+        - start
+        - --smp
+        - "1"
+        - --reserve-memory
+        - "0M"
+        - --overprovisioned
+        - --node-id
+        - "$(POD_INDEX)"
+        - --kafka-addr
+        - "PLAINTEXT://0.0.0.0:29092,OUTSIDE://0.0.0.0:9092"
+        - --advertise-kafka-addr
+        - "PLAINTEXT://$(POD_NAME).redpanda-headless:29092,OUTSIDE://$(POD_NAME).redpanda-headless:9092"
+        - --pandaproxy-addr
+        - "0.0.0.0:8082"
+        - --advertise-pandaproxy-addr
+        - "$(POD_NAME).redpanda-headless:8082"
+        - --rpc-addr
+        - "0.0.0.0:33145"
+        - --advertise-rpc-addr
+        - "$(POD_NAME).redpanda-headless:33145"
+        env:
+        - name: POD_NAME
+          valueFrom:
+            fieldRef:
+              fieldPath: metadata.name
+        - name: POD_INDEX
+          valueFrom:
+            fieldRef:
+              fieldPath: metadata.annotations['apps.kubernetes.io/pod-index']
+        ports:
+        - containerPort: 9092
+          name: kafka
+        - containerPort: 29092
+          name: kafka-internal
+        - containerPort: 8082
+          name: proxy
+        - containerPort: 33145
+          name: rpc
+        resources:
+          requests:
+            memory: "512Mi"
+            cpu: "500m"
+          limits:
+            memory: "2Gi"
+            cpu: "2000m"
+        volumeMounts:
+        - name: redpanda-data
+          mountPath: /var/lib/redpanda/data
+        livenessProbe:
+          exec:
+            command:
+            - /bin/sh
+            - -c
+            - "rpk cluster info"
+          initialDelaySeconds: 30
+          periodSeconds: 10
+        readinessProbe:
+          exec:
+            command:
+            - /bin/sh
+            - -c
+            - "rpk cluster info"
+          initialDelaySeconds: 10
+          periodSeconds: 5
+  volumeClaimTemplates:
+  - metadata:
+      name: redpanda-data
+    spec:
+      accessModes: ["ReadWriteOnce"]
+      resources:
+        requests:
+          storage: 50Gi
+      storageClassName: fast-ssd
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: redpanda-service
+  namespace: geo-sharding
+  labels:
+    app: redpanda
+spec:
+  selector:
+    app: redpanda
+  ports:
+  - name: kafka
+    port: 9092
+    targetPort: 9092
+    protocol: TCP
+  - name: proxy
+    port: 8082
+    targetPort: 8082
+    protocol: TCP
+  type: ClusterIP
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: redpanda-headless
+  namespace: geo-sharding
+  labels:
+    app: redpanda
+spec:
+  clusterIP: None
+  selector:
+    app: redpanda
+  ports:
+  - name: kafka
+    port: 9092
+    targetPort: 9092
+    protocol: TCP
+  - name: kafka-internal
+    port: 29092
+    targetPort: 29092
+    protocol: TCP
+  - name: proxy
+    port: 8082
+    targetPort: 8082
+    protocol: TCP
+  - name: rpc
+    port: 33145
+    targetPort: 33145
+    protocol: TCP

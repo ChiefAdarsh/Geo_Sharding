@@ -1,0 +1,167 @@
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: control-plane
+  namespace: geo-sharding
+  labels:
+    app: control-plane
+    component: consensus
+spec:
+  serviceName: control-plane-headless
+  replicas: 3
+  selector:
+    matchLabels:
+      app: control-plane
+  template:
+    metadata:
+      labels:
+        app: control-plane
+        component: consensus
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "9090"
+        prometheus.io/path: "/metrics"
+    spec:
+      containers:
+      - name: control-plane
+        image: geo-sharding/control-plane:latest
+        imagePullPolicy: IfNotPresent
+        ports:
+        - containerPort: 7000
+          name: raft
+        - containerPort: 8080
+          name: http
+        - containerPort: 9090
+          name: metrics
+        env:
+        - name: NODE_ID
+          valueFrom:
+            fieldRef:
+              fieldPath: metadata.name
+        - name: BIND_ADDR
+          value: "0.0.0.0:7000"
+        - name: HTTP_ADDR
+          value: "0.0.0.0:8080"
+        - name: DATA_DIR
+          value: "/data"
+        - name: BOOTSTRAP
+          value: "false"
+        - name: JOIN_ADDR
+          value: "control-plane-0.control-plane-headless:8080"
+        - name: LOG_LEVEL
+          valueFrom:
+            configMapKeyRef:
+              name: geo-sharding-config
+              key: LOG_LEVEL
+        - name: RAFT_HEARTBEAT_TIMEOUT
+          valueFrom:
+            configMapKeyRef:
+              name: geo-sharding-config
+              key: RAFT_HEARTBEAT_TIMEOUT
+        - name: RAFT_ELECTION_TIMEOUT
+          valueFrom:
+            configMapKeyRef:
+              name: geo-sharding-config
+              key: RAFT_ELECTION_TIMEOUT
+        - name: RAFT_COMMIT_TIMEOUT
+          valueFrom:
+            configMapKeyRef:
+              name: geo-sharding-config
+              key: RAFT_COMMIT_TIMEOUT
+        resources:
+          requests:
+            memory: "128Mi"
+            cpu: "100m"
+          limits:
+            memory: "512Mi"
+            cpu: "500m"
+        livenessProbe:
+          httpGet:
+            path: /health
+            port: 8080
+          initialDelaySeconds: 30
+          periodSeconds: 10
+          timeoutSeconds: 5
+          failureThreshold: 3
+        readinessProbe:
+          httpGet:
+            path: /ready
+            port: 8080
+          initialDelaySeconds: 10
+          periodSeconds: 5
+          timeoutSeconds: 3
+          failureThreshold: 3
+        volumeMounts:
+        - name: data
+          mountPath: /data
+        - name: tmp
+          mountPath: /tmp
+      volumes:
+      - name: tmp
+        emptyDir: {}
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+        fsGroup: 1000
+  volumeClaimTemplates:
+  - metadata:
+      name: data
+    spec:
+      accessModes: ["ReadWriteOnce"]
+      resources:
+        requests:
+          storage: 10Gi
+      storageClassName: fast-ssd
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: control-plane-headless
+  namespace: geo-sharding
+  labels:
+    app: control-plane
+spec:
+  clusterIP: None
+  selector:
+    app: control-plane
+  ports:
+  - name: raft
+    port: 7000
+    targetPort: 7000
+    protocol: TCP
+  - name: http
+    port: 8080
+    targetPort: 8080
+    protocol: TCP
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: control-plane-service
+  namespace: geo-sharding
+  labels:
+    app: control-plane
+spec:
+  selector:
+    app: control-plane
+  ports:
+  - name: http
+    port: 80
+    targetPort: 8080
+    protocol: TCP
+  - name: metrics
+    port: 9090
+    targetPort: 9090
+    protocol: TCP
+  type: ClusterIP
+---
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: control-plane-pdb
+  namespace: geo-sharding
+spec:
+  minAvailable: 2
+  selector:
+    matchLabels:
+      app: control-plane
