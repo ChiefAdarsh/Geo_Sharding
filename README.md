@@ -317,5 +317,3 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 - **Event Sourcing**: Greg Young, Martin Fowler
 
 ---
-
-**Built with ❤️ for the CometStudy platform**
