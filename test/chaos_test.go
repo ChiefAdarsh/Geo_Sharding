@@ -12,11 +12,11 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	
-	"github.com/cometstudy/geo-sharding/internal/crdt"
-	"github.com/cometstudy/geo-sharding/internal/quadkey"
-	"github.com/cometstudy/geo-sharding/internal/shard"
-	"github.com/cometstudy/geo-sharding/pkg/kafka"
-	"github.com/cometstudy/geo-sharding/pkg/redis"
+	"geo-sharding/internal/crdt"
+	"geo-sharding/internal/quadkey"
+	"geo-sharding/internal/shard"
+	"geo-sharding/pkg/kafka"
+	"geo-sharding/pkg/redis"
 )
 
 // ChaosTestSuite contains chaos engineering tests
@@ -69,7 +69,7 @@ func NewChaosTestSuite(t *testing.T) *ChaosTestSuite {
 
 // TestNetworkPartition simulates network partitions and tests recovery
 func (suite *ChaosTestSuite) TestNetworkPartition(t *testing.T) {
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Minute)
+	_, cancel := context.WithTimeout(context.Background(), 5*time.Minute)
 	defer cancel()
 
 	// Test CRDT convergence under network partitions
@@ -304,7 +304,7 @@ func (suite *ChaosTestSuite) TestDataCorruption(t *testing.T) {
 
 // TestEventualConsistency tests CRDT eventual consistency under chaos
 func (suite *ChaosTestSuite) TestEventualConsistency(t *testing.T) {
-	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Minute)
+	_, cancel := context.WithTimeout(context.Background(), 3*time.Minute)
 	defer cancel()
 
 	const numNodes = 5

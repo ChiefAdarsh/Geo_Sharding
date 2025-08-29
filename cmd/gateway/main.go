@@ -3,7 +3,6 @@ package main
 import (
 	"context"
 	"flag"
-	"fmt"
 	"os"
 	"os/signal"
 	"syscall"
@@ -11,10 +10,10 @@ import (
 
 	"github.com/sirupsen/logrus"
 	
-	"github.com/cometstudy/geo-sharding/internal/gateway"
-	"github.com/cometstudy/geo-sharding/internal/shard"
-	"github.com/cometstudy/geo-sharding/pkg/kafka"
-	"github.com/cometstudy/geo-sharding/pkg/redis"
+	"geo-sharding/internal/gateway"
+	"geo-sharding/internal/shard"
+	"geo-sharding/pkg/kafka"
+	"geo-sharding/pkg/redis"
 )
 
 func main() {
@@ -80,7 +79,7 @@ func main() {
 	logger.Info("Shutting down gateway server")
 
 	// Graceful shutdown
-	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	_, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
 
 	// Cleanup

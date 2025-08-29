@@ -58,10 +58,10 @@ func (h *HLC) Update(received Timestamp) Timestamp {
 
 	now := uint64(time.Now().UnixNano())
 	
-	maxPhysical := max(h.physical, received.Physical, now)
+	maxPhysical := max3(h.physical, received.Physical, now)
 	
 	if maxPhysical == h.physical && maxPhysical == received.Physical {
-		h.logical = max(h.logical, received.Logical) + 1
+		h.logical = max2(h.logical, received.Logical) + 1
 	} else if maxPhysical == h.physical {
 		h.logical++
 	} else if maxPhysical == received.Physical {
@@ -140,7 +140,7 @@ func TimestampFromBytes(data []byte) (Timestamp, error) {
 	return t, err
 }
 
-func max(a, b, c uint64) uint64 {
+func max3(a, b, c uint64) uint64 {
 	if a >= b && a >= c {
 		return a
 	}
@@ -150,7 +150,7 @@ func max(a, b, c uint64) uint64 {
 	return c
 }
 
-func max(a, b uint64) uint64 {
+func max2(a, b uint64) uint64 {
 	if a > b {
 		return a
 	}

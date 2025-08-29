@@ -7,8 +7,9 @@ import (
 	"sync"
 	"time"
 
-	"github.com/cometstudy/geo-sharding/internal/quadkey"
-	"github.com/cometstudy/geo-sharding/pkg/redis"
+	"geo-sharding/internal/quadkey"
+	"geo-sharding/pkg/redis"
+	goredis "github.com/go-redis/redis/v8"
 	"github.com/sirupsen/logrus"
 )
 
@@ -105,7 +106,7 @@ func (mv *MaterializedViewStore) GetNearbyCells(ctx context.Context, lat, lon fl
 
 	// Use pipeline for batch operations
 	pipe := mv.redis.Pipeline()
-	cmds := make([]*redis.StringCmd, len(keys))
+	cmds := make([]*goredis.StringCmd, len(keys))
 	
 	for i, key := range keys {
 		cmds[i] = pipe.Get(ctx, key)
@@ -300,7 +301,7 @@ func (mv *MaterializedViewStore) GetPinsByUser(ctx context.Context, userID strin
 	
 	// Batch fetch pins
 	pipe := mv.redis.Pipeline()
-	cmds := make([]*redis.StringCmd, len(pinIDs))
+	cmds := make([]*goredis.StringCmd, len(pinIDs))
 	
 	for i, pinID := range pinIDs {
 		cmds[i] = pipe.Get(ctx, mv.pinKey(pinID))
@@ -371,7 +372,7 @@ func (mv *MaterializedViewStore) updatePinIndexes(ctx context.Context, pin *Stud
 	pipe.Expire(ctx, mv.quadkeyPinsKey(pin.Quadkey), mv.ttl)
 	
 	// Add to geospatial index
-	pipe.GeoAdd(ctx, "pins_geo", &redis.GeoLocation{
+	pipe.GeoAdd(ctx, "pins_geo", &goredis.GeoLocation{
 		Name:      pin.ID,
 		Longitude: pin.Longitude,
 		Latitude:  pin.Latitude,

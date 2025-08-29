@@ -46,7 +46,7 @@ func NewProducer(config ProducerConfig, logger *logrus.Logger) *Producer {
 	}
 
 	if config.RequiredAcks == 0 {
-		config.RequiredAcks = kafka.RequireAll // Ensure durability
+		config.RequiredAcks = int(kafka.RequireAll) // Ensure durability
 	}
 
 	if config.BatchSize == 0 {

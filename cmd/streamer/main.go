@@ -6,15 +6,14 @@ import (
 	"os"
 	"os/signal"
 	"syscall"
-	"time"
 
 	"github.com/sirupsen/logrus"
 	
-	"github.com/cometstudy/geo-sharding/internal/shard"
-	"github.com/cometstudy/geo-sharding/internal/streamer"
-	"github.com/cometstudy/geo-sharding/pkg/kafka"
-	"github.com/cometstudy/geo-sharding/pkg/postgres"
-	"github.com/cometstudy/geo-sharding/pkg/redis"
+	"geo-sharding/internal/shard"
+	"geo-sharding/internal/streamer"
+	"geo-sharding/pkg/kafka"
+	"geo-sharding/pkg/postgres"
+	"geo-sharding/pkg/redis"
 )
 
 func main() {

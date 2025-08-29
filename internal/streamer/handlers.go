@@ -7,9 +7,9 @@ import (
 
 	"github.com/sirupsen/logrus"
 	
-	"github.com/cometstudy/geo-sharding/internal/shard"
-	"github.com/cometstudy/geo-sharding/pkg/kafka"
-	"github.com/cometstudy/geo-sharding/pkg/postgres"
+	"geo-sharding/internal/shard"
+	"geo-sharding/pkg/kafka"
+	"geo-sharding/pkg/postgres"
 )
 
 // StudyPinHandler handles study pin events

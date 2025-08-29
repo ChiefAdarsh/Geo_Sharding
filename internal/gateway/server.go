@@ -14,9 +14,9 @@ import (
 	"github.com/google/uuid"
 	"github.com/sirupsen/logrus"
 	
-	"github.com/cometstudy/geo-sharding/internal/quadkey"
-	"github.com/cometstudy/geo-sharding/internal/shard"
-	"github.com/cometstudy/geo-sharding/pkg/kafka"
+	"geo-sharding/internal/quadkey"
+	"geo-sharding/internal/shard"
+	"geo-sharding/pkg/kafka"
 )
 
 // Server implements the HTTP gateway
